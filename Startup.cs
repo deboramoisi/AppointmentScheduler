@@ -1,4 +1,6 @@
 using AppointmentScheduler.Data;
+using AppointmentScheduler.Models;
+using AppointmentScheduler.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -31,6 +33,12 @@ namespace AppointmentScheduler
             services.AddDatabaseDeveloperPageExceptionFilter();
 
             services.AddControllersWithViews();
+            services.AddRazorPages();
+
+            services.AddTransient<IAppointmentService, AppointmentService>();
+            services.AddIdentity<ApplicationUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>()
+                                                                .AddDefaultTokenProviders();
+            services.AddHttpContextAccessor();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

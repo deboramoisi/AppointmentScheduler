@@ -1,4 +1,5 @@
 ﻿using AppointmentScheduler.Data;
+using AppointmentScheduler.Models;
 using AppointmentScheduler.Models.ViewModels;
 using AppointmentScheduler.Utility;
 using System;
@@ -15,6 +16,101 @@ namespace AppointmentScheduler.Services
         public AppointmentService(ApplicationDbContext db)
         {
             _db = db;
+        }
+
+        public async Task<int> AddUpdate(AppointmentVM model)
+        {
+            var startDate = DateTime.Parse(model.StartDate);
+            var endDate = DateTime.Parse(model.StartDate).AddMinutes(Convert.ToDouble(model.Duration));
+            
+            if(model != null && model.Id > 0)
+            {
+                // update
+                Appointment appoinment = _db.Appointments.Find(model.Id);
+                _db.Appointments.Update(appoinment);
+                await _db.SaveChangesAsync();
+                return 1;
+            } 
+            else
+            {
+                // create
+                Appointment appoinment = new Appointment()
+                {
+                    Title = model.Title,
+                    Description = model.Description,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Duration = model.Duration,
+                    DoctorId = model.DoctorId,
+                    PatientId = model.PatientId,
+                    isDoctorApproved = false,
+                    AdminId = model.AdminId
+                };
+
+                _db.Appointments.Add(appoinment);
+                await _db.SaveChangesAsync();
+                return 2;
+            }
+        }
+
+        public async Task<int> ConfirmEvent(int id)
+        {
+            var appointment = _db.Appointments.FirstOrDefault(c => c.Id == id);
+            if (appointment != null)
+            {
+                appointment.isDoctorApproved = true;
+                return await _db.SaveChangesAsync();
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        public async Task<int> Delete(int id)
+        {
+            var appointment = _db.Appointments.FirstOrDefault(c => c.Id == id);
+            if (appointment != null)
+            {
+                _db.Appointments.Remove(appointment);
+                return await _db.SaveChangesAsync();
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        public List<AppointmentVM> DoctorsEventsById(string doctorId)
+        {
+            return _db.Appointments.Where(x => x.DoctorId == doctorId).ToList().Select(c => new AppointmentVM() 
+            { 
+                Id = c.Id,
+                Description = c.Description,
+                StartDate = c.StartDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = c.EndDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                Title = c.Title,
+                Duration = c.Duration,
+                isDoctorApproved = c.isDoctorApproved
+            }).ToList();
+        }
+
+        public AppointmentVM GetById(int id)
+        {
+            return _db.Appointments.Where(x => x.Id == id).ToList().Select(c => new AppointmentVM()
+            {
+                Id = c.Id,
+                Description = c.Description,
+                StartDate = c.StartDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = c.EndDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                Title = c.Title,
+                Duration = c.Duration,
+                isDoctorApproved = c.isDoctorApproved,
+                PatientId = c.PatientId,
+                DoctorId = c.DoctorId,
+                PatientName = _db.Users.Where(x=>x.Id==c.PatientId).Select(x=>x.Name).FirstOrDefault(),
+                DoctorName = _db.Users.Where(x => x.Id == c.DoctorId).Select(x => x.Name).FirstOrDefault()
+            }).SingleOrDefault();
         }
 
         public List<DoctorVM> GetDoctorList()
@@ -43,6 +139,20 @@ namespace AppointmentScheduler.Services
                              }).ToList();
 
             return patients;
+        }
+
+        public List<AppointmentVM> PatientsEventsById(string patientId)
+        {
+            return _db.Appointments.Where(x => x.PatientId == patientId).ToList().Select(c => new AppointmentVM()
+            {
+                Id = c.Id,
+                Description = c.Description,
+                StartDate = c.StartDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = c.EndDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                Title = c.Title,
+                Duration = c.Duration,
+                isDoctorApproved = c.isDoctorApproved
+            }).ToList();
         }
     }
 }

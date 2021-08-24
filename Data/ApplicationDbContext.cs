@@ -15,5 +15,7 @@ namespace AppointmentScheduler.Data
             : base(options)
         {
         }
+
+        public DbSet<Appointment> Appointments { get; set; }
     }
 }

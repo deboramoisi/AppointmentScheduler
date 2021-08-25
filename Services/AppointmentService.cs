@@ -2,6 +2,7 @@
 using AppointmentScheduler.Models;
 using AppointmentScheduler.Models.ViewModels;
 using AppointmentScheduler.Utility;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,22 +13,35 @@ namespace AppointmentScheduler.Services
     public class AppointmentService : IAppointmentService
     {
         private readonly ApplicationDbContext _db;
+        private readonly IEmailSender _emailSender;
 
-        public AppointmentService(ApplicationDbContext db)
+        public AppointmentService(ApplicationDbContext db,
+            IEmailSender emailSender)
         {
             _db = db;
+            _emailSender = emailSender;
         }
 
         public async Task<int> AddUpdate(AppointmentVM model)
         {
             var startDate = DateTime.Parse(model.StartDate);
             var endDate = DateTime.Parse(model.StartDate).AddMinutes(Convert.ToDouble(model.Duration));
-            
-            if(model != null && model.Id > 0)
+            var patient = _db.Users.FirstOrDefault(x => x.Id == model.PatientId);
+            var doctor = _db.Users.FirstOrDefault(x => x.Id == model.DoctorId);
+
+            if (model != null && model.Id > 0)
             {
                 // update
-                Appointment appoinment = _db.Appointments.Find(model.Id);
-                _db.Appointments.Update(appoinment);
+                Appointment appointment = _db.Appointments.Find(model.Id);
+                appointment.Title = model.Title;
+                appointment.Description = model.Description;
+                appointment.StartDate = startDate;
+                appointment.EndDate = endDate;
+                appointment.Duration = model.Duration;
+                appointment.DoctorId = model.DoctorId;
+                appointment.PatientId = model.PatientId;
+                appointment.isDoctorApproved = model.isDoctorApproved;
+                appointment.AdminId = model.AdminId;
                 await _db.SaveChangesAsync();
                 return 1;
             } 
@@ -46,6 +60,11 @@ namespace AppointmentScheduler.Services
                     isDoctorApproved = false,
                     AdminId = model.AdminId
                 };
+
+                await _emailSender.SendEmailAsync(doctor.Email, "Appointment Created",
+                    $"Your appointment with {patient.Name} is created and in pending status");
+                await _emailSender.SendEmailAsync(patient.Email, "Appointment Created",
+                    $"Your appointment with {doctor.Name} is created and in pending status");
 
                 _db.Appointments.Add(appoinment);
                 await _db.SaveChangesAsync();

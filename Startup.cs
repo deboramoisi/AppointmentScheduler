@@ -1,19 +1,16 @@
 using AppointmentScheduler.Data;
 using AppointmentScheduler.Models;
 using AppointmentScheduler.Services;
+using AppointmentScheduler.Utility;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace AppointmentScheduler
 {
@@ -38,7 +35,22 @@ namespace AppointmentScheduler
             services.AddTransient<IAppointmentService, AppointmentService>();
             services.AddIdentity<ApplicationUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>()
                                                                 .AddDefaultTokenProviders();
+            services.AddDistributedMemoryCache();
+            services.AddScoped<IEmailSender, EmailSender>();
+            services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromDays(10);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
+            services.ConfigureApplicationCookie(options =>
+            {
+                options.AccessDeniedPath = new Microsoft.AspNetCore.Http.PathString("/Home/AccessDenied");
+            });
             services.AddHttpContextAccessor();
+
+            services.Configure<MailJetSettings>(Configuration.GetSection("MailJet"));
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -62,6 +74,7 @@ namespace AppointmentScheduler
 
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseSession();
 
             app.UseEndpoints(endpoints =>
             {
